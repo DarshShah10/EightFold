@@ -81,6 +81,24 @@ from .explainability import (
     ProblemTrace,
 )
 
+# Codeforces Intelligence exports
+from .codeforces import (
+    CodeforcesAnalyzer,
+    analyze_codeforces_profile,
+    FlagDetector,
+    detect_flags,
+    is_flagged,
+    get_cheated_contests,
+    get_rating_tier,
+    get_topic_breakdown,
+    get_difficulty_breakdown,
+    map_cf_topics_to_job_skills,
+    get_problem_solving_score,
+    get_tier_description,
+    CF_TOPIC_TO_JOB_SKILLS,
+    RATING_TIER_SCORES,
+)
+
 __all__ = [
     # Main harvest function
     "harvest",
@@ -122,4 +140,19 @@ __all__ = [
     "EvidenceSource",
     "ProjectEvidence",
     "ProblemTrace",
+    # Codeforces Intelligence
+    "CodeforcesAnalyzer",
+    "analyze_codeforces_profile",
+    "FlagDetector",
+    "detect_flags",
+    "is_flagged",
+    "get_cheated_contests",
+    "get_rating_tier",
+    "get_topic_breakdown",
+    "get_difficulty_breakdown",
+    "map_cf_topics_to_job_skills",
+    "get_problem_solving_score",
+    "get_tier_description",
+    "CF_TOPIC_TO_JOB_SKILLS",
+    "RATING_TIER_SCORES",
 ]

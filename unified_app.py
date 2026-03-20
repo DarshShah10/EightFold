@@ -53,7 +53,7 @@ st.markdown("""
 
 # ─── Imports ──────────────────────────────────────────────────────────────────
 try:
-    from integrator import TalentIntelligenceIntegrator, analyze, analyze_batch
+    from integrator import TalentIntelligenceIntegrator, analyze, analyze_batch, analyze_codeforces, analyze_full
     from src import JDContextAnalyzer, AdaptiveScoringEngine, CrossValidator
     INTEGRATOR_OK = True
 except ImportError as e:
@@ -783,6 +783,242 @@ def tab_explainability():
         st.markdown(f"**Explainability Confidence:** {confidence:.0%}")
 
 
+# ─── Tab 5: Codeforces ─────────────────────────────────────────────────────────
+
+def tab_codeforces():
+    st.markdown('<p class="main-header">🏆 Codeforces Verification</p>', unsafe_allow_html=True)
+    st.markdown("Verify competitive programming skills and detect potential cheating on Codeforces. This provides a 10% signal boost to the overall scoring score.")
+
+    # Warning banner
+    st.warning(
+        "🚨 **Flag Detection Active**: This module detects if a candidate skipped ALL problems in contests "
+        "(cheated pattern). Hard-flagged users get 0 problem-solving score. "
+        "This is a **port of the CFCheatDetector Cheated.jsx logic**."
+    )
+
+    col_cf1, col_cf2 = st.columns([1, 1])
+    with col_cf1:
+        cf_handle = st.text_input(
+            "Codeforces Handle",
+            placeholder="e.g., tourist, Petr, tourist",
+            help="Enter the Codeforces username to analyze"
+        )
+    with col_cf2:
+        st.markdown("")  # Spacer
+        st.markdown("")  # Spacer
+        st.caption("Enter a handle above to analyze competitive programming profile")
+
+    # Optional JD input for skill relevance
+    st.markdown("**Job Description for Skill Relevance (Optional)**")
+    cf_jd = st.text_area(
+        "Job Description (for JD skill matching)",
+        height=100,
+        placeholder="Paste JD here to see how CF topics map to required skills...",
+        key="cf_jd_input",
+    )
+
+    if st.button("🔬 Analyze Codeforces Profile", type="primary", use_container_width=True):
+        if not cf_handle.strip():
+            st.warning("Please enter a Codeforces handle.")
+            return
+
+        with st.spinner(f"Analyzing Codeforces profile: {cf_handle}..."):
+            try:
+                cf_result = analyze_codeforces(cf_handle, cf_jd)
+            except Exception as e:
+                st.error(f"Error: {e}")
+                return
+
+        # Handle errors
+        if cf_result.get("error"):
+            if "not found" in str(cf_result.get("error", "")).lower():
+                st.error(f"User '{cf_handle}' not found on Codeforces.")
+            else:
+                st.error(f"Error: {cf_result.get('error')}")
+            return
+
+        # ── Skipped Contests Banner (Show prominently) ─────────────────────
+        cheated = cf_result.get("cheated_contests", [])
+        is_flagged = cf_result.get("is_flagged", False)
+        flag_type = cf_result.get("flag_type", "none")
+        
+        if cheated:
+            st.error(f"**{len(cheated)} contest(s) with ALL problems skipped** — possible cheating detected")
+            for c in cheated[:3]:
+                name = c.get("contest_name", "Unknown Contest")
+                skipped = c.get("problems_skipped", 0)
+                attempted = c.get("problems_attempted", 0)
+                st.markdown(f"- `{name}`: skipped {skipped}/{attempted} problems")
+            if len(cheated) > 3:
+                st.caption(f"...and {len(cheated) - 3} more skipped contests")
+            st.divider()
+        elif is_flagged:
+            st.warning(f"Flagged: {flag_type}")
+            st.divider()
+
+        # ── Verdict Banner ────────────────────────────────────────────────
+        verdict = cf_result.get("verdict", "")
+        is_flagged = cf_result.get("is_flagged", False)
+        flag_type = cf_result.get("flag_type", "none")
+
+        if "🚨" in verdict or is_flagged:
+            if flag_type == "hard":
+                st.error(f"## 🚨 HARDFLAG: Cheated in Contests\n\n{verdict}")
+            elif flag_type == "soft":
+                st.warning(f"## ⚠️ SOFT FLAG: Suspicious Pattern\n\n{verdict}")
+            else:
+                st.warning(f"## ⚠️ FLAGGED: {flag_type}\n\n{verdict}")
+        elif "✅" in verdict:
+            st.success(f"## ✅ {verdict}")
+        elif "⚪" in verdict:
+            st.info(f"## ⚪ {verdict}")
+        else:
+            st.info(f"## {verdict}")
+
+        # ── Rating & Badge ───────────────────────────────────────────────
+        st.markdown("### 🏅 Rating Profile")
+        col_r1, col_r2, col_r3, col_r4, col_r5 = st.columns(5)
+        with col_r1:
+            rating = cf_result.get("rating", 0)
+            max_rating = cf_result.get("max_rating", 0)
+            tier = cf_result.get("rating_tier", "Unrated")
+            emoji = cf_result.get("rating_emoji", "⚪")
+            st.metric("Rating", f"{emoji} {max_rating}")
+            st.caption(f"{tier}")
+        with col_r2:
+            st.metric("Current Rating", cf_result.get("rating", 0))
+        with col_r3:
+            problems = cf_result.get("problems_solved", 0)
+            st.metric("Problems Solved", problems)
+        with col_r4:
+            contests = cf_result.get("contest_count", 0)
+            st.metric("Contests", contests)
+        with col_r5:
+            ac_rate = cf_result.get("ac_rate", 0)
+            st.metric("AC Rate", f"{ac_rate:.0%}")
+
+        # Profile link
+        st.markdown(f"[🔗 View on Codeforces]({cf_result.get('profile_url', '#')})")
+
+        # ── Problem-Solving Score ────────────────────────────────────────
+        st.markdown("### 📊 Problem-Solving Score")
+        ps_score = cf_result.get("problem_solving_score", 0.0)
+        render_score_bar(ps_score, "Problem-Solving Score")
+
+        col_ps1, col_ps2 = st.columns(2)
+        with col_ps1:
+            tier_desc = cf_result.get("tier_description", "")
+            if tier_desc:
+                st.info(f"**Engineering Level:** {tier_desc}")
+        with col_ps2:
+            # Top topics
+            topics = cf_result.get("top_topics", [])
+            if topics:
+                st.markdown(f"**Top Topics:** {', '.join([f'`{t}`' for t in topics[:5]])}")
+
+        # ── Flag Details ────────────────────────────────────────────────
+        if is_flagged:
+            st.markdown("### 🚨 Flag Details")
+            col_fl1, col_fl2 = st.columns(2)
+            with col_fl1:
+                st.metric("Flag Type", flag_type.upper())
+                st.metric("Flag Score", f"{cf_result.get('flag_score', 0):.1%}")
+            with col_fl2:
+                evidence = cf_result.get("flag_evidence", [])
+                if evidence:
+                    for ev in evidence:
+                        st.markdown(f"- {ev}")
+
+            # Cheated contests
+            cheated = cf_result.get("cheated_contests", [])
+            if cheated:
+                st.markdown("**🚨 Contests Where ALL Problems Were Skipped:**")
+                for c in cheated[:5]:
+                    cid = c.get("contest_id", "?")
+                    name = c.get("contest_name", f"Contest {cid}")
+                    attempted = c.get("problems_attempted", 0)
+                    skipped = c.get("problems_skipped", 0)
+                    url = c.get("contest_url", "#")
+                    st.markdown(
+                        f"- [{name}]({url}) — skipped {skipped}/{attempted} problems"
+                    )
+
+        # ── Difficulty Breakdown ────────────────────────────────────────
+        st.markdown("### 📈 Difficulty Breakdown")
+        difficulty = cf_result.get("difficulty_breakdown", {})
+        if difficulty:
+            # Render as horizontal bars
+            fig = go.Figure()
+            sorted_buckets = sorted(difficulty.items(), key=lambda x: x[0])
+            labels = [b[0].split(" ")[0] for b in sorted_buckets]
+            values = list(difficulty.values())
+
+            fig.add_trace(go.Bar(
+                y=labels,
+                x=values,
+                orientation='h',
+                marker_color=px.colors.sequential.Blues[5],
+                text=values,
+                textposition='outside',
+            ))
+            fig.update_layout(
+                height=max(200, len(labels) * 40),
+                margin=dict(l=120, r=40, t=10, b=10),
+                xaxis_title="Problems Solved",
+                yaxis=dict(autorange="reversed"),
+                showlegend=False,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No difficulty data available (problems may not have ratings).")
+
+        # ── Topics / Tags ───────────────────────────────────────────────
+        topics_detail = cf_result.get("topics_detail", [])
+        if topics_detail:
+            st.markdown("### 🏷️ Topic Analysis")
+            cols = st.columns(2)
+            for idx, topic in enumerate(topics_detail[:8]):
+                with cols[idx % 2]:
+                    name = topic.get("name", "")
+                    count = topic.get("count", 0)
+                    avg_r = topic.get("avg_rating", 0)
+                    max_r = topic.get("max_rating", 0)
+                    st.markdown(
+                        f"**{name}** — {count} problems, avg: {avg_r:.0f}, max: {max_r}"
+                    )
+
+        # ── Languages Used ──────────────────────────────────────────────
+        languages = cf_result.get("languages", {})
+        if languages:
+            st.markdown("### 💻 Programming Languages")
+            top_langs = sorted(languages.items(), key=lambda x: x[1], reverse=True)[:5]
+            for lang, count in top_langs:
+                st.markdown(f"- **{lang}:** {count} accepted submissions")
+
+        # ── JD Relevance ───────────────────────────────────────────────
+        jd_rel = cf_result.get("jd_relevance", {})
+        if jd_rel:
+            st.markdown("### 🎯 JD Skill Relevance")
+            coverage = jd_rel.get("coverage", 0)
+            st.metric("Coverage", f"{coverage:.0%}")
+
+            matched = jd_rel.get("matched_skills", [])
+            partial = jd_rel.get("partial_skills", [])
+            if matched:
+                st.markdown(f"**✅ Matched Job Skills ({len(matched)}):**")
+                st.markdown(", ".join([f"`{s}`" for s in matched]))
+            if partial:
+                st.markdown(f"**🔶 Partial Match ({len(partial)}):**")
+                st.markdown(", ".join([f"`{s}`" for s in partial[:5]]))
+            if not matched and not partial:
+                st.info("No direct matches between CF topics and JD skills. The candidate's CP topics don't overlap with job requirements.")
+
+            # CF topics mapped to job skills
+            job_skills_mapped = jd_rel.get("job_skills_mapped", [])
+            if job_skills_mapped:
+                st.markdown(f"**CF Topics → Job Skills:** {', '.join([f'`{s}`' for s in job_skills_mapped[:8]])}")
+
+
 # ─── Main App ──────────────────────────────────────────────────────────────────
 
 def main():
@@ -809,6 +1045,7 @@ def main():
         "👥 Candidates",
         "📊 Scoring Results",
         "🔍 Explainability",
+        "🏆 Codeforces",
     ])
 
     with tabs[0]:
@@ -819,6 +1056,8 @@ def main():
         tab_scoring_results()
     with tabs[3]:
         tab_explainability()
+    with tabs[4]:
+        tab_codeforces()
 
 
 if __name__ == "__main__":

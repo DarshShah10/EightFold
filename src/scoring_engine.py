@@ -104,7 +104,18 @@ class AdaptiveScoringEngine:
             gap_analysis, jd_context, adaptive_weights
         )
 
-        # Step 8: Build result
+        # Step 8: Incorporate Codeforces problem-solving signal if available
+        problem_solving_signal = self._calc_problem_solving(deep_signals)
+        if problem_solving_signal:
+            signals["problem_solving"] = problem_solving_signal
+            # Blend into composite score (10% weight for CF-verified problem solving)
+            composite_score = (
+                0.90 * composite_score +
+                0.10 * problem_solving_signal.get("score", 0)
+            )
+            composite_score = min(composite_score, 1.0)
+
+        # Step 9: Build result
         result = {
             "username": candidate_profile.get("username"),
             "name": candidate_profile.get("name", candidate_profile.get("resume_name", "")),
@@ -660,3 +671,82 @@ class AdaptiveScoringEngine:
         if reasons:
             return f"Ranked lower because " + ", ".join(reasons)
         return "Close overall score"
+
+    def _calc_problem_solving(self, deep_signals: Optional[Dict]) -> Optional[Dict]:
+        """
+        Calculate problem-solving score from Codeforces data.
+        This signal is added when deep_signals contains a 'codeforces' key.
+        """
+        if not deep_signals:
+            return None
+
+        cf = deep_signals.get("codeforces")
+        if not cf:
+            return None
+
+        # If CF result has an error, skip
+        if cf.get("error"):
+            return None
+
+        # Check for flag
+        is_flagged = cf.get("is_flagged", False)
+        flag_type = cf.get("flag_type", "none")
+        flag_score = cf.get("flag_score", 0.0)
+
+        # If hard-flagged, return penalty signal
+        if is_flagged and flag_type == "hard":
+            return {
+                "score": 0.0,
+                "verified": False,
+                "tier": cf.get("rating_tier", "Unrated"),
+                "max_rating": cf.get("max_rating", 0),
+                "problems_solved": cf.get("problems_solved", 0),
+                "verdict": cf.get("verdict", "Flagged"),
+                "flag_type": flag_type,
+                "flag_score": flag_score,
+                "reason": "User flagged for skipping all problems — cheated pattern detected",
+            }
+
+        # Get problem-solving score from Codeforces analysis
+        cf_score = cf.get("problem_solving_score", 0.0)
+        max_rating = cf.get("max_rating", 0)
+        tier = cf.get("rating_tier", "Unrated")
+        problems = cf.get("problems_solved", 0)
+        topics = cf.get("top_topics", [])
+
+        # Apply flag penalty if soft-flagged
+        if is_flagged:
+            cf_score *= 0.3
+
+        return {
+            "score": round(cf_score, 3),
+            "verified": not is_flagged,
+            "tier": tier,
+            "max_rating": max_rating,
+            "problems_solved": problems,
+            "top_topics": topics[:5],
+            "verdict": cf.get("verdict", "Verified"),
+            "flag_type": flag_type,
+            "flag_score": flag_score,
+            "ac_rate": cf.get("ac_rate", 0.0),
+            "contest_count": cf.get("contest_count", 0),
+            "jd_coverage": cf.get("jd_relevance", {}).get("coverage", 0.0),
+            "reason": self._get_problem_solving_reason(tier, max_rating, problems, is_flagged),
+        }
+
+    def _get_problem_solving_reason(self, tier: str, max_rating: int, problems: int, is_flagged: bool) -> str:
+        """Generate human-readable reason for problem-solving score."""
+        if is_flagged:
+            return "Codeforces profile flagged — do not rely on CP verification"
+        if tier == "Unrated" or max_rating == 0:
+            return "No competitive programming history on Codeforces"
+        if max_rating >= 2400:
+            return f"Exceptional problem solver ({tier}) — verified on Codeforces"
+        elif max_rating >= 1900:
+            return f"Strong competitive programmer ({tier}) — skills verified"
+        elif max_rating >= 1600:
+            return f"Competent problem solver ({tier}) — good algorithmic foundation"
+        elif max_rating >= 1400:
+            return f"Developing competitive skills ({tier}) — entry-level"
+        else:
+            return f"New to competitive programming ({tier}) — basic skills"

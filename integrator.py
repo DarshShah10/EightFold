@@ -43,8 +43,13 @@ from modules import (
     build_candidate_profile,
     ExplainabilityEngine,
     explain_skill_intelligence,
+    CodeforcesAnalyzer,
+    get_problem_solving_score,
+    get_tier_description,
+    map_cf_topics_to_job_skills,
 )
 from modules.commit_analyzer import analyze_commits
+from modules.codeforces import FlagDetector
 from src import (
     AdaptiveScoringEngine,
     CrossValidator,
@@ -856,6 +861,154 @@ Provide a 2-sentence hiring recommendation. Format: "HIRE/CONSIDER/MAYBE/PASS: [
             "confidence": round((base_score + commit_score) / 2, 3),
         }
 
+    def analyze_codeforces(
+        self,
+        cf_handle: str,
+        job_description: str = "",
+        jd_skills: List[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Analyze a Codeforces profile for competitive programming verification.
+
+        This runs independently of GitHub analysis and provides:
+        - Flag/Cheat detection (HARD FLAG: skipped all problems in contests)
+        - Rating tier and color badge
+        - Problem difficulty breakdown
+        - Topic strengths (DP, graphs, math, etc.)
+        - Problem-solving score for scoring engine integration
+        - Job-relevant skill mapping
+
+        Args:
+            cf_handle: Codeforces username
+            job_description: Optional JD text for skill relevance scoring
+            jd_skills: Optional list of JD skills for direct comparison
+
+        Returns:
+            Codeforces analysis result dict
+        """
+        logger.info(f"Analyzing Codeforces profile: {cf_handle}")
+
+        try:
+            # Run full Codeforces analysis
+            cf_analyzer = CodeforcesAnalyzer()
+            cf_result = cf_analyzer.analyze(cf_handle)
+            cf_dict = cf_result.to_dict()
+
+            # Get flag result
+            flag_result = cf_dict.get("flag_result", {}) or {}
+
+            # Map topics to job skills
+            cf_topics = cf_dict.get("top_topics", [])
+            job_skills = []
+            if jd_skills:
+                job_skills = jd_skills
+            elif job_description:
+                from src.jd_extractor import extract_skills_fallback
+                try:
+                    skills_data = extract_skills_fallback(job_description)
+                    job_skills = (
+                        skills_data.get("must_have", []) +
+                        skills_data.get("nice_to_have", [])
+                    )
+                except Exception:
+                    job_skills = []
+
+            # Get JD relevance
+            jd_relevance = {}
+            if job_skills:
+                from modules.codeforces.skills_mapper import get_jd_relevance as _get_jd_relevance
+                jd_relevance = _get_jd_relevance(cf_topics, job_skills)
+
+            # Build Codeforces-specific result
+            result = {
+                "handle": cf_handle,
+                "profile_url": f"https://codeforces.com/profile/{cf_handle}",
+                # Flag status
+                "is_flagged": flag_result.get("is_flagged", False),
+                "flag_type": flag_result.get("flag_type", "none"),
+                "flag_score": flag_result.get("flag_score", 0.0),
+                "flag_evidence": flag_result.get("evidence", []),
+                "cheated_contests": flag_result.get("cheated_contests", []),
+                # Rating
+                "rating": cf_dict.get("rating", 0),
+                "max_rating": cf_dict.get("max_rating", 0),
+                "rating_tier": cf_dict.get("rating_tier", "Unrated"),
+                "rating_emoji": cf_dict.get("rating_emoji", "⚪"),
+                "rank": cf_dict.get("rank", "unrated"),
+                "max_rank": cf_dict.get("max_rank", "unrated"),
+                # Problems
+                "problems_solved": cf_dict.get("problems_solved", 0),
+                "difficulty_breakdown": cf_dict.get("difficulty_breakdown", {}),
+                # Topics
+                "top_topics": cf_topics,
+                "topics_detail": cf_dict.get("topics", []),
+                # Stats
+                "total_submissions": cf_dict.get("total_submissions", 0),
+                "accepted_count": cf_dict.get("accepted_count", 0),
+                "ac_rate": cf_dict.get("ac_rate", 0.0),
+                "contest_count": cf_dict.get("contest_count", 0),
+                "languages": cf_dict.get("languages", {}),
+                # Scores
+                "problem_solving_score": cf_dict.get("problem_solving_score", 0.0),
+                # JD relevance
+                "jd_relevance": jd_relevance,
+                # Description
+                "tier_description": get_tier_description(cf_dict.get("rating_tier", "unrated")),
+                # Verdict
+                "verdict": self._build_cf_verdict(flag_result, cf_dict),
+            }
+
+            logger.info(f"Codeforces analysis complete for {cf_handle}: "
+                       f"flagged={flag_result.get('is_flagged', False)}, "
+                       f"rating={cf_dict.get('max_rating', 0)}, "
+                       f"problems={cf_dict.get('problems_solved', 0)}")
+
+            return result
+
+        except ValueError as e:
+            logger.warning(f"Codeforces user not found: {cf_handle}")
+            return {
+                "handle": cf_handle,
+                "error": str(e),
+                "is_flagged": False,
+                "flag_type": "not_found",
+                "problem_solving_score": 0.0,
+                "verdict": "NOT FOUND: Codeforces user does not exist",
+            }
+        except Exception as e:
+            logger.error(f"Codeforces analysis error for {cf_handle}: {e}")
+            return {
+                "handle": cf_handle,
+                "error": str(e),
+                "is_flagged": False,
+                "flag_type": "error",
+                "problem_solving_score": 0.0,
+                "verdict": f"ERROR: {str(e)[:100]}",
+            }
+
+    def _build_cf_verdict(self, flag_result: Dict, cf_dict: Dict) -> str:
+        """Build a human-readable verdict for Codeforces profile."""
+        is_flagged = flag_result.get("is_flagged", False)
+        flag_type = flag_result.get("flag_type", "none")
+        max_rating = cf_dict.get("max_rating", 0)
+        problems = cf_dict.get("problems_solved", 0)
+        tier = cf_dict.get("rating_tier", "Unrated")
+
+        if is_flagged:
+            if flag_type == "hard":
+                return f"🚨 FLAGGED: Skipped all problems in contests. Do NOT rely on Codeforces data."
+            elif flag_type == "soft":
+                return f"⚠️ SOFT FLAG: High skip rate detected. Use with caution."
+            elif flag_type == "low_ac_rate":
+                return f"⚠️ SUSPICIOUS: Very low accept rate. Verify skills manually."
+            else:
+                return f"⚠️ FLAGGED: {flag_type}. Use with caution."
+
+        if max_rating == 0:
+            return "⚪ UNRATED: No competitive programming history."
+
+        return f"✅ VERIFIED: {tier} ({max_rating}) — {problems} problems solved. Codeforces skills verified."
+
 
 # ─── Convenience functions ────────────────────────────────────────────────────
 
@@ -912,3 +1065,82 @@ def analyze_batch(
         job_description=job_description,
         force_refresh=force_refresh,
     )
+
+
+def analyze_codeforces(
+    cf_handle: str,
+    job_description: str = "",
+    jd_skills: List[str] = None,
+) -> Dict[str, Any]:
+    """
+    Analyze a Codeforces profile for competitive programming verification.
+
+    Args:
+        cf_handle: Codeforces username
+        job_description: Optional JD text for skill relevance
+        jd_skills: Optional list of JD skills
+
+    Returns:
+        Codeforces analysis result dict
+    """
+    integrator = TalentIntelligenceIntegrator()
+    return integrator.analyze_codeforces(cf_handle, job_description, jd_skills)
+
+
+def analyze_full(
+    github_handle: str,
+    cf_handle: str,
+    job_description: str,
+    resume_pdf_path: str = None,
+    github_token: str = None,
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    Full analysis: GitHub + Codeforces combined.
+
+    Args:
+        github_handle: GitHub username
+        cf_handle: Codeforces username
+        job_description: Job description text
+        resume_pdf_path: Optional PDF resume path
+        github_token: Optional GitHub token
+        force_refresh: Force re-harvest GitHub data
+
+    Returns:
+        Combined analysis result with GitHub + Codeforces signals
+    """
+    integrator = TalentIntelligenceIntegrator(github_token=github_token)
+
+    # Run GitHub analysis
+    github_result = integrator.analyze_candidate(
+        github_handle=github_handle,
+        job_description=job_description,
+        resume_pdf_path=resume_pdf_path,
+        force_refresh=force_refresh,
+    )
+
+    # Run Codeforces analysis
+    cf_result = integrator.analyze_codeforces(cf_handle, job_description)
+
+    # Combine results
+    github_result["codeforces"] = cf_result
+
+    # Update unified recommendation with CF signal
+    cf_score = cf_result.get("problem_solving_score", 0.0)
+    cf_flagged = cf_result.get("is_flagged", False)
+    unified = github_result.get("unified_recommendation", {})
+
+    if cf_flagged:
+        # Penalize heavily if flagged
+        unified["rationale"] += " ⚠️ Codeforces flagged."
+        unified["unified_score"] = round(unified.get("unified_score", 0) * 0.7, 3)
+        unified["recommendation"] = "PASS"
+    elif cf_score > 0:
+        # Boost if verified good CF profile
+        boost = min(cf_score * 0.1, 0.1)
+        unified["unified_score"] = round(min(unified.get("unified_score", 0) + boost, 1.0), 3)
+        unified["rationale"] += f" ✅ Codeforces verified: {cf_result.get('rating_tier', 'Unrated')}."
+
+    github_result["unified_recommendation"] = unified
+
+    return github_result
