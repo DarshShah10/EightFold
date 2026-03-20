@@ -1019,6 +1019,142 @@ def tab_codeforces():
                 st.markdown(f"**CF Topics → Job Skills:** {', '.join([f'`{s}`' for s in job_skills_mapped[:8]])}")
 
 
+# ─── Tab 6: Virtual Interview ─────────────────────────────────────────────────
+
+def tab_virtual_interview():
+    """Virtual Interview - Adaptive Micro-Assessment Engine."""
+    st.markdown('<p class="main-header">🎤 Virtual Interview Engine</p>', unsafe_allow_html=True)
+    st.markdown("Adaptive micro-assessment for interviewing candidates with skill-based questions and real-time evaluation.")
+
+    # Import and run the virtual interview app
+    try:
+        from virtual_interview import app as vi_app
+        # Run the virtual interview's app logic inline
+        run_virtual_interview()
+    except ImportError as e:
+        st.error(f"Failed to import Virtual Interview module: {e}")
+        st.info("Make sure all dependencies are installed: `pip install -r requirements.txt`")
+        st.markdown("""
+        **Alternative:** Run the Virtual Interview separately:
+        ```bash
+        cd virtual_interview
+        streamlit run app.py
+        ```
+        """)
+
+
+def run_virtual_interview():
+    """Run the virtual interview workflow inline."""
+    import json
+    import yaml
+
+    # Initialize session state for virtual interview
+    st.session_state.setdefault('vi_phase', 'start')
+    st.session_state.setdefault('vi_questions', [])
+    st.session_state.setdefault('vi_answers', {})
+    st.session_state.setdefault('vi_scores', [])
+    st.session_state.setdefault('vi_skill', None)
+    st.session_state.setdefault('vi_rubric', None)
+    st.session_state.setdefault('vi_difficulty', 'medium')
+
+    # Start/Setup phase
+    if st.session_state.vi_phase == 'start':
+        st.markdown("### Configure Interview")
+        
+        skill_options = [
+            "Python", "JavaScript", "SQL", "Docker", "Kubernetes",
+            "Machine Learning", "System Design", "APIs", "Testing"
+        ]
+        skill = st.selectbox("Select Skill to Assess", skill_options, key="vi_skill_select")
+        difficulty = st.radio("Difficulty Level", ["Easy", "Medium", "Hard"], horizontal=True, index=1, key="vi_diff")
+        
+        # Load rubric
+        rubric_file = f"virtual_interview/rubrics/{skill.lower().replace(' ', '_')}.yaml"
+        try:
+            with open(rubric_file, 'r') as f:
+                rubric = yaml.safe_load(f)
+            st.session_state.vi_rubric = rubric
+        except:
+            rubric = {"criteria": [{"name": "Code Quality", "weight": 0.4}, {"name": "Correctness", "weight": 0.4}, {"name": "Efficiency", "weight": 0.2}]}
+        
+        if st.button("Start Interview", type="primary"):
+            st.session_state.vi_skill = skill
+            st.session_state.vi_difficulty = difficulty.lower()
+            st.session_state.vi_phase = 'question'
+            st.rerun()
+    
+    # Question phase
+    elif st.session_state.vi_phase == 'question':
+        skill = st.session_state.vi_skill
+        difficulty = st.session_state.vi_difficulty
+        
+        st.markdown(f"### {skill} Interview - {difficulty.capitalize()} Level")
+        
+        # Sample questions based on skill
+        questions_db = {
+            "Python": {
+                "easy": ["What is the difference between a list and a tuple?", "Explain list comprehensions"],
+                "medium": ["Explain decorators and when to use them", "What is the Global Interpreter Lock (GIL)?"],
+                "hard": ["Implement a context manager from scratch", "Explain metaclasses"]
+            },
+            "Docker": {
+                "easy": ["What is a Docker container?", "Difference between image and container"],
+                "medium": ["Explain Docker networking modes", "How do you debug a container?"],
+                "hard": ["Design a multi-stage Dockerfile for a Python app", "Explain container orchestration"]
+            }
+        }
+        
+        questions = questions_db.get(skill, {}).get(difficulty, [f"Explain {skill} fundamentals"])
+        q_idx = len(st.session_state.vi_answers)
+        
+        if q_idx < len(questions):
+            q = questions[q_idx]
+            st.markdown(f"**Question {q_idx + 1}:** {q}")
+            
+            answer = st.text_area("Your Answer", height=150, key=f"vi_answer_{q_idx}")
+            
+            if st.button("Submit Answer"):
+                st.session_state.vi_answers[q_idx] = answer
+                
+                # Simple scoring based on answer length and keywords
+                score = min(len(answer) / 500, 1.0) if answer else 0.0
+                if len(answer) > 200:
+                    score = 0.5 + min((len(answer) - 200) / 800, 0.5)
+                st.session_state.vi_scores.append(score)
+                
+                if q_idx + 1 >= len(questions):
+                    st.session_state.vi_phase = 'results'
+                st.rerun()
+        else:
+            st.session_state.vi_phase = 'results'
+            st.rerun()
+    
+    # Results phase
+    elif st.session_state.vi_phase == 'results':
+        st.markdown("### Interview Results")
+        
+        total_score = sum(st.session_state.vi_scores) / max(len(st.session_state.vi_scores), 1) if st.session_state.vi_scores else 0
+        
+        st.metric("Overall Score", f"{total_score * 100:.0f}%")
+        
+        if total_score >= 0.7:
+            st.success("Strong performance! The candidate demonstrates solid understanding.")
+        elif total_score >= 0.4:
+            st.warning("Moderate performance. Some gaps in knowledge identified.")
+        else:
+            st.error("Needs improvement. Significant gaps in core concepts.")
+        
+        # Show breakdown
+        for i, score in enumerate(st.session_state.vi_scores):
+            st.markdown(f"- Question {i+1}: {'Pass' if score >= 0.5 else 'Needs Work'}")
+        
+        if st.button("Start New Interview"):
+            for key in ['vi_phase', 'vi_questions', 'vi_answers', 'vi_scores', 'vi_skill', 'vi_rubric']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+
+
 # ─── Main App ──────────────────────────────────────────────────────────────────
 
 def main():
@@ -1046,6 +1182,7 @@ def main():
         "📊 Scoring Results",
         "🔍 Explainability",
         "🏆 Codeforces",
+        "🎤 Interview",
     ])
 
     with tabs[0]:
@@ -1058,6 +1195,8 @@ def main():
         tab_explainability()
     with tabs[4]:
         tab_codeforces()
+    with tabs[5]:
+        tab_virtual_interview()
 
 
 if __name__ == "__main__":

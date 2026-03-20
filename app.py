@@ -1,14 +1,17 @@
 """
 EightFold Talent Intelligence - Entry Point
 ==========================================
-Techkriti '26 × EightFold AI — Impact Area 01: Signal Extraction & Verification
+Techkriti '26 × EightFold AI
 
-Run this file with Streamlit:
-    cd C:\Darsh\Techkriti\Resume_Parser\EightFold
+Simple 2-tab interface:
+  1. Main - JD Analysis + Candidates + Scoring (auto-flow)
+  2. Interview - Adaptive Virtual Interview
+
+Run with:
     streamlit run app.py
 
 Or directly:
-    streamlit run unified_app.py
+    streamlit run app_main.py
 """
 
 import subprocess
@@ -20,19 +23,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 if __name__ == "__main__":
-    # Check for critical imports before starting Streamlit
-    missing = []
+    # Check for streamlit
     try:
         import streamlit
     except ImportError:
-        missing.append("streamlit")
-
-    if missing:
-        print("ERROR: Missing required packages.")
-        print(f"Install with: pip install -r FINAL_REQUIREMENTS.txt")
-        print(f"Missing: {', '.join(missing)}")
+        print("ERROR: streamlit not installed.")
+        print("Install with: pip install streamlit")
         sys.exit(1)
 
-    # Launch the unified app
-    sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", "unified_app.py",
+    # Launch the main app
+    sys.exit(subprocess.call([sys.executable, "-m", "streamlit", "run", "app_main.py",
                                "--browser.gatherUsageStats", "false"]))
