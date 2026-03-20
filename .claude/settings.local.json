@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find . -name *.py -o -name *.json -o -name requirements.txt)",
+      "Bash(export GITHUB_TOKEN=\"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\")",
+      "Bash(python run_harvester.py gvanrossum)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from modules.fetchers.commits import classify_commit_message; print\\(''test: add unit tests ->'', classify_commit_message\\(''test: add unit tests''\\)\\); print\\(''chore: update dependencies ->'', classify_commit_message\\(''chore: update dependencies''\\)\\)\")",
+      "Bash(python -c \"from modules.config import COMMIT_PATTERNS; import re; print\\(''ci pattern:'', COMMIT_PATTERNS[''ci'']\\); print\\(''feat pattern:'', COMMIT_PATTERNS[''feat'']\\); print\\(''test pattern:'', COMMIT_PATTERNS[''test'']\\); print\\(''chore pattern:'', COMMIT_PATTERNS[''chore'']\\); print\\(\\); msg = ''chore: update dependencies''; print\\(f''Message: {msg}''\\); print\\(f''ci match: {re.search\\(COMMIT_PATTERNS[\"\"ci\"\"], msg.lower\\(\\)\\)}''\\); print\\(f''feat match: {re.search\\(COMMIT_PATTERNS[\"\"feat\"\"], msg.lower\\(\\)\\)}''\\); print\\(f''chore match: {re.search\\(COMMIT_PATTERNS[\"\"chore\"\"], msg.lower\\(\\)\\)}''\\)\")",
+      "Bash(python -c \"from modules.fetchers.commits import classify_commit_message; tests = [''test suite'', ''testsuite'', ''Add coverage'']; [print\\(f''{t} -> {classify_commit_message\\(t\\)}''\\) for t in tests]\")",
+      "Bash(python -m pytest tests/ -v --tb=short -q)",
+      "Bash(python:*)",
+      "Bash(python -c \"from modules.commit_analyzer import analyze_commits; print\\(''Import successful''\\)\")",
+      "Bash(export LLM_API_KEY=\"sk-cm-test-key\")"
+    ]
+  }
+}

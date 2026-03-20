@@ -1,0 +1,38 @@
+# Senior Backend Engineer - Python/Go
+## Job Description
+
+We're looking for a **Senior Backend Engineer** to join our platform team and help build scalable, high-performance services.
+
+### Required Skills
+- 5+ years of experience with Python or Go
+- Strong experience with REST APIs and microservices architecture
+- Experience with PostgreSQL and Redis
+- Familiarity with Docker and Kubernetes
+- Strong understanding of code quality and testing (TDD preferred)
+
+### Preferred Skills
+- Experience with AWS or GCP
+- Knowledge of message queues (Kafka, RabbitMQ)
+- Experience with GraphQL
+- Contribution to open source projects
+
+### What We Value
+- Clean code and maintainable architecture
+- Collaborative mindset and code review skills
+- Documentation and knowledge sharing
+- Continuous learning and innovation
+
+### Responsibilities
+- Design and implement backend services
+- Lead technical architecture decisions
+- Mentor junior team members
+- Participate in on-call rotation
+
+### Benefits
+- Flexible work hours (we care about output, not when you work)
+- Remote-first culture
+- Annual learning budget for courses and conferences
+
+---
+
+*We are an equal opportunity employer. We do not discriminate on the basis of race, religion, national origin, gender, sexual orientation, age, disability, or any other protected status.*

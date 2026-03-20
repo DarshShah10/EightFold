@@ -1,0 +1,55 @@
+AI-ML Engineer
+
+We seek a highly skilled AI-ML Engineer with 3-5 years of industry experience specializing in AI/ML, MLOps, Azure cloud computing, and Python to collaborate with our team of Data Scientists, Data Engineers, and Subject Matter Experts (SMEs).
+
+Candidate should have strong expertise in traditional ML to design, develop, and deploy industrial AI solutions for refinery and petrochemical operations. The role focuses on time-series modeling, forecasting, optimization, and real-time deployment of ML systems that deliver measurable business impact (e.g., energy savings, yield improvement, process optimization).
+
+What You'll Be Doing
+
+Design, build and deploy end-to-end AI/ML pipelines for industrial use cases at scale on cloud-based platforms or on-prem server
+Select and implement appropriate AI/ML algorithms, and tools
+Build and maintain data pipelines using Python & SQL for reliable data flow between IT/OT systems
+Develop time-series forecasting and prediction models for process variables (e.g., temperature, pressure, yield, emissions, energy consumption)
+Build optimization models for refinery & petrochemical operations (e.g., fuel optimization, throughput maximization, energy efficiency)
+Work with high-frequency process data from historians (e.g., PHD, OPC, SCADA systems)
+Perform feature engineering on multivariate time-series data, including lag features, rolling statistics, and domain-driven transformations
+Train, evaluate, monitor, retrain and maintain AI/ML models
+Deploy models into production using APIs, batch pipelines, or real-time streaming systems
+Implement model monitoring, drift detection, and retraining pipelines
+Collaborate with process engineers, SMEs, operations teams, and business users to translate domain problems into ML solutions
+Ensure scalability, reliability, and performance of deployed AI systems
+Regularly update and leverage industry trends and advancements in AI, ML, and Optimization technologies.
+
+What We are looking for
+
+3-5 years of experience in AI/ML engineering roles
+Strong programming skills in Python, R, or a similar language
+Robust understanding of machine learning and deep learning methodologies, including training, inferencing, and performance monitoring
+Strong experience in time-series modeling, forecasting, and prediction problems
+Proven experience in industrial/process data (Oil & Gas / Manufacturing preferred)
+Solid expertise with machine learning libraries (Numpy, Pandas, Matplotlib, Scikit-learn, Scipy, Seaborn, NLTK, Flask, Django) and frameworks (TensorFlow, PyTorch, Langchain, Langgraph).
+Strong expertise in SQL for data extraction, transformation, and pipeline building
+Understanding of feature engineering for time-series data
+Experience in building end-to-end ML systems (data model deployment monitoring_>retraining)
+Hands-on experience with model deployment
+Solid understanding of MLOps concepts:
+Model versioning
+CI/CD pipelines
+Monitoring & alerting
+Automated retraining
+Experience handling large-scale data using PySpark / Apache Spark (good to have)
+
+Good to Have (Not Mandatory)
+
+Exposure to Azure (Azure ML, Data Factory, Databricks, etc.)
+Experience with real-time data streaming (Kafka, MQTT, OPC integration)
+Exposure to GenAI / LLMs / Agentic systems (secondary skill, not core requirement)
+Knowledge of refinery / petrochemical processes (CDU, FCC, Cracker, Boilers, etc.)
+
+Key Focus Areas for This Role
+
+Time-series forecasting & prediction, hyperparameter optimization
+Process optimization using AI/ML/RL (Reinforcement Learning)
+End-to-end ML pipeline development
+Deployment in real industrial environments
+MLOps & lifecycle management
