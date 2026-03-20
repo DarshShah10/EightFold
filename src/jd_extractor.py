@@ -346,6 +346,11 @@ SKILL_GRAPH = {
     "Go": ["Go", "Rust", "C++", "gRPC"],
     "React": ["React", "React Native", "Next.js", "TypeScript"],
     "Node.js": ["Node.js", "Express", "NestJS", "TypeScript"],
+    # REST APIs - Flask/FastAPI/Django are common REST API frameworks
+    "REST API": ["Flask", "FastAPI", "Django REST Framework", "Express", "Node.js"],
+    "REST": ["Flask", "FastAPI", "Django REST Framework", "Express", "Node.js"],
+    "Flask": ["REST API", "REST", "FastAPI", "Django REST Framework"],
+    "FastAPI": ["REST API", "REST", "Flask", "GraphQL"],
     # ML skills: Python is the primary language for ML
     "Machine Learning": ["Python", "ML", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", "Keras", "NLP"],
     "Deep Learning": ["Python", "TensorFlow", "PyTorch", "Keras", "Computer Vision", "NLP"],

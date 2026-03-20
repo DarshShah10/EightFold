@@ -1,0 +1,61 @@
+# Docker Rubric - Evaluation Criteria
+# This file defines transparent, configurable evaluation criteria for Docker
+
+skill: Docker
+description: Containerization and container management
+
+# Evaluation dimensions with weights
+dimensions:
+  - name: images
+    description: "Understanding of Docker images and Dockerfiles"
+    weight: 0.25
+    indicators:
+      - "Writes efficient Dockerfiles"
+      - "Understands layering and caching"
+      - "Knows multi-stage builds"
+  
+  - name: networking
+    description: "Docker networking and port management"
+    weight: 0.25
+    indicators:
+      - "Understands bridge, host, overlay networks"
+      - "Maps ports correctly (EXPOSE vs -p)"
+      - "Knows service discovery"
+  
+  - name: storage
+    description: "Docker volumes and persistent storage"
+    weight: 0.25
+    indicators:
+      - "Uses volumes correctly"
+      - "Understands bind mounts"
+      - "Knows tmpfs for sensitive data"
+  
+  - name: debugging
+    description: "Container debugging and troubleshooting"
+    weight: 0.25
+    indicators:
+      - "Inspects containers (docker inspect)"
+      - "Views logs effectively"
+      - "Executes commands in containers"
+
+# Question templates
+question_templates:
+  - type: debugging
+    prompt: "A container keeps restarting. How do you investigate?"
+    expected_concepts:
+      - "docker logs"
+      - "docker inspect"
+      - "exit codes"
+  
+  - type: images
+    prompt: "How would you optimize a Dockerfile for a Node.js application?"
+    expected_concepts:
+      - "Multi-stage builds"
+      - "Layer caching"
+      - "Non-root user"
+
+# Scoring thresholds
+scoring:
+  beginner_threshold: 0.3
+  intermediate_threshold: 0.6
+  advanced_threshold: 0.8

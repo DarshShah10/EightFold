@@ -1,0 +1,68 @@
+# Kubernetes Rubric - Evaluation Criteria
+# This file defines transparent, configurable evaluation criteria for Kubernetes
+
+skill: Kubernetes
+description: Container orchestration and cluster management
+
+# Evaluation dimensions with weights
+dimensions:
+  - name: architecture
+    description: "Understanding of K8s architecture (pods, services, nodes, clusters)"
+    weight: 0.25
+    indicators:
+      - "Mentions pod lifecycle and states"
+      - "Understands service types and networking"
+      - "Knows node and cluster structure"
+  
+  - name: debugging
+    description: "Ability to debug K8s issues (logs, describe, exec)"
+    weight: 0.25
+    indicators:
+      - "Uses kubectl logs correctly"
+      - "Uses kubectl describe for events"
+      - "Knows how to exec into pods"
+  
+  - name: operations
+    description: "Day-to-day K8s operations (deploy, scale, update)"
+    weight: 0.25
+    indicators:
+      - "Can deploy applications"
+      - "Understands scaling and replicas"
+      - "Knows rolling updates and rollbacks"
+  
+  - name: security
+    description: "K8s security best practices (RBAC, secrets, network policies)"
+    weight: 0.25
+    indicators:
+      - "Understands RBAC and permissions"
+      - "Handles secrets appropriately"
+      - "Knows network policies"
+
+# Question templates for generating scenarios
+question_templates:
+  - type: debugging
+    prompt: "A pod is stuck in CrashLoopBackOff. Walk me through how you'd debug this."
+    expected_concepts:
+      - "kubectl logs"
+      - "kubectl describe"
+      - "Events section"
+  
+  - type: architecture
+    prompt: "Explain how a Service load-balances traffic to Pods in Kubernetes."
+    expected_concepts:
+      - "Endpoints"
+      - "kube-proxy"
+      - "iptables/IPVS"
+  
+  - type: operations
+    prompt: "How would you perform a zero-downtime deployment of a new version of your application?"
+    expected_concepts:
+      - "Rolling updates"
+      - "Readiness probes"
+      - "Deployment strategies"
+
+# Scoring thresholds specific to Kubernetes
+scoring:
+  beginner_threshold: 0.3
+  intermediate_threshold: 0.6
+  advanced_threshold: 0.8

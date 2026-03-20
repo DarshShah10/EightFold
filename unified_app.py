@@ -783,6 +783,391 @@ def tab_explainability():
         st.markdown(f"**Explainability Confidence:** {confidence:.0%}")
 
 
+# ─── Tab 5: Virtual Interview ─────────────────────────────────────────────────
+
+def tab_virtual_interview():
+    """Virtual Interview - Adaptive Micro-Assessment Engine."""
+    st.markdown('<p class="main-header">🎤 Virtual Interview Engine</p>', unsafe_allow_html=True)
+    st.markdown("Adaptive micro-assessment for interviewing candidates with skill-based questions and real-time evaluation.")
+
+    # Import and run the virtual interview app
+    try:
+        from virtual_interview import app as vi_app
+        # Run the virtual interview's app logic inline
+        run_virtual_interview()
+    except ImportError as e:
+        st.error(f"Failed to import Virtual Interview module: {e}")
+        st.info("Make sure all dependencies are installed: `pip install -r requirements.txt`")
+        st.markdown("""
+        **Alternative:** Run the Virtual Interview separately:
+        ```bash
+        cd virtual_interview
+        streamlit run app.py
+        ```
+        """)
+
+
+def run_virtual_interview():
+    """Run the virtual interview workflow inline."""
+    import json
+
+    # Initialize session state for virtual interview
+    st.session_state.setdefault('vi_phase', 'start')
+    st.session_state.setdefault('vi_skills', [])
+    st.session_state.setdefault('vi_selected_skills', [])
+    st.session_state.setdefault('vi_current_skill_idx', 0)
+    st.session_state.setdefault('vi_current_skill', None)
+    st.session_state.setdefault('vi_question', None)
+    st.session_state.setdefault('vi_eval_done', False)
+    st.session_state.setdefault('vi_evaluation', None)
+    st.session_state.setdefault('vi_skill_scores', {})
+    st.session_state.setdefault('vi_difficulty', {})
+    st.session_state.setdefault('vi_history', [])
+    st.session_state.setdefault('vi_answers', [])
+    st.session_state.setdefault('vi_job_role', 'Software Engineer')
+
+    # CSS
+    st.markdown("""
+    <style>
+    .vi-question-box { background: #1e1e1e; color: #fff; padding: 20px; border-radius: 10px; border-left: 5px solid #9c27b0; margin: 10px 0; }
+    .vi-result-box { background: #2d2d2d; padding: 15px; border-radius: 10px; margin: 10px 0; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    def reset_vi():
+        for key in list(st.session_state.keys()):
+            if key.startswith('vi_'):
+                del st.session_state[key]
+        st.rerun()
+
+    def get_vi_llm_client():
+        from openai import OpenAI
+        from virtual_interview.config import API_CONFIG
+        return OpenAI(api_key=API_CONFIG["api_key"], base_url=API_CONFIG["base_url"])
+
+    def call_vi_llm(messages: list, max_tokens: int = 400) -> str:
+        from virtual_interview.config import API_CONFIG
+        client = get_vi_llm_client()
+        response = client.chat.completions.create(
+            model=API_CONFIG["model"],
+            max_tokens=max_tokens,
+            messages=messages
+        )
+        if hasattr(response, 'choices') and response.choices:
+            return response.choices[0].message.content or str(response)
+        return str(response)
+
+    def extract_vi_skills(jd_text: str):
+        """Extract skills from job description using the app's existing extraction logic."""
+        try:
+            # Use the same extraction logic as the rest of the app
+            from src import extract_skills_from_jd, extract_skills_fallback
+
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if api_key and "your-api-key" not in api_key:
+                skills_result = extract_skills_from_jd(jd_text)
+            else:
+                skills_result = extract_skills_fallback(jd_text)
+
+            # Convert to VI format: list of {"name": ..., "type": ...}
+            skills = []
+
+            # Add must_have skills as "conceptual" type
+            for skill_name in skills_result.get("must_have", []):
+                skills.append({"name": skill_name, "type": "conceptual"})
+
+            # Add nice_to_have skills
+            for skill_name in skills_result.get("nice_to_have", []):
+                skills.append({"name": skill_name, "type": "conceptual"})
+
+            # Detect job role from seniority signals or defaults
+            seniority = skills_result.get("seniority_signals", [])
+            if seniority:
+                st.session_state.vi_job_role = seniority[0] if seniority else "Software Engineer"
+            else:
+                st.session_state.vi_job_role = "Software Engineer"
+
+            return skills if skills else [{"name": "Programming", "type": "coding"}]
+
+        except Exception as e:
+            # Fallback to basic keyword extraction
+            skills = []
+            tech_keywords = ["python", "java", "javascript", "docker", "kubernetes", "aws", "react", "node", "sql", "machine learning", "tensorflow", "pytorch", "git", "ci/cd", "agile"]
+            for kw in tech_keywords:
+                if kw.lower() in jd_text.lower():
+                    t = "coding" if kw in ["python", "java", "javascript"] else "tool"
+                    skills.append({"name": kw.title(), "type": t})
+            st.session_state.vi_job_role = "Software Engineer"
+            return skills[:10] or [{"name": "Programming", "type": "coding"}]
+
+    def generate_vi_question(skill_name: str, skill_type: str, diff: int):
+        """Generate interview question."""
+        try:
+            diff_labels = {1: "beginner", 2: "easy", 3: "medium", 4: "hard", 5: "expert"}
+            difficulty = diff_labels.get(diff, "medium")
+            job_role = st.session_state.vi_job_role
+
+            if skill_type == "coding":
+                prompt = f"""Generate a {difficulty} level coding problem for a {job_role} position using {skill_name}.
+Return JSON: {{"question": "specific problem", "input": "example input", "output": "expected output", "hints": ["hint"]}}"""
+            else:
+                prompt = f"""Generate a {difficulty} interview question about {skill_name} for a {job_role} position.
+Return JSON: {{"question": "[scenario-based question]", "hints": ["hint"]}}"""
+
+            text = call_vi_llm([{"role": "user", "content": prompt}], max_tokens=500)
+            text = text.strip()
+            if '{' in text:
+                start = text.find('{')
+                end = text.rfind('}') + 1
+                if end > start:
+                    return json.loads(text[start:end])
+        except:
+            pass
+        return {"question": f"Explain {skill_name} and its importance in {st.session_state.vi_job_role} role", "hints": ["Focus on practical applications"]}
+
+    def evaluate_vi_answer(skill: str, question: str, answer: str) -> dict:
+        """Evaluate interview answer."""
+        import re
+        try:
+            prompt = f"""Evaluate this answer for the question:
+Question: {question}
+Answer: {answer}
+
+Return JSON with score (0-100), correct (true/false), and feedback:
+{{"score": number, "correct": true/false, "feedback": "explanation"}}"""
+
+            response = call_vi_llm([{"role": "user", "content": prompt}], max_tokens=400)
+            response_lower = response.lower()
+
+            # Extract score
+            score = 50
+            for pattern in [r'"score"\s*:\s*(\d+)', r'score[:\s]+(\d+)', r'(\d+)\s*/\s*100']:
+                match = re.search(pattern, response_lower)
+                if match:
+                    score = int(match.group(1))
+                    break
+
+            correct = 'correct: true' in response_lower or '"correct": true' in response_lower
+            correctness = score / 100.0
+
+            return {
+                "correctness": correctness,
+                "clarity": correctness,
+                "correct": correct,
+                "depth": "high" if correctness > 0.75 else "medium" if correctness > 0.5 else "low",
+                "feedback": response,
+                "strengths": ["Good answer"] if correctness >= 0.5 else [],
+                "gaps": ["Needs more detail"] if correctness < 0.7 else []
+            }
+        except Exception as e:
+            return {"correctness": 0.5, "clarity": 0.5, "correct": False, "depth": "medium", "feedback": str(e), "strengths": [], "gaps": []}
+
+    # ===== VI PHASE 1: JD Upload =====
+    if st.session_state.vi_phase == 'start':
+        st.markdown("### 📄 Step 1: Upload Job Description (or enter skills manually)")
+        jd_input = st.text_area("Job Description", height=150, placeholder="Paste job description...", key="vi_jd_input")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 Extract Skills", type="primary", disabled=not jd_input):
+                with st.spinner("Analyzing..."):
+                    skills = extract_vi_skills(jd_input)
+                    st.session_state.vi_skills = skills
+                    st.session_state.vi_phase = 'skills'
+                    st.rerun()
+        with col2:
+            st.markdown("**Or enter manually:**")
+            manual = st.text_input("Skills (comma-separated)", placeholder="Python, Docker, AWS", key="vi_manual")
+            if st.button("Use Manual Skills") and manual:
+                skills = [{"name": s.strip(), "type": "conceptual"} for s in manual.split(",") if s.strip()]
+                st.session_state.vi_skills = skills
+                st.session_state.vi_phase = 'skills'
+                st.rerun()
+
+    # ===== VI PHASE 2: Select Skills =====
+    elif st.session_state.vi_phase == 'skills':
+        st.markdown("### ✅ Extracted Skills")
+        st.markdown(f"**🎯 Position:** {st.session_state.vi_job_role}")
+
+        if not st.session_state.vi_skills:
+            st.warning("No skills extracted.")
+            if st.button("← Go Back"):
+                st.session_state.vi_phase = 'start'
+                st.rerun()
+
+        selected = []
+        for s in st.session_state.vi_skills:
+            if st.checkbox(f"{s['name']} ({s.get('type', 'conceptual')})", value=True):
+                selected.append(s)
+                if s['name'] not in st.session_state.vi_skill_scores:
+                    st.session_state.vi_skill_scores[s['name']] = {'correct': 0, 'total': 0}
+                if s['name'] not in st.session_state.vi_difficulty:
+                    st.session_state.vi_difficulty[s['name']] = 3
+
+        if selected and st.button(f"🎯 Start Interview ({len(selected)} skills)", type="primary"):
+            st.session_state.vi_selected_skills = selected
+            st.session_state.vi_current_skill_idx = 0
+            st.session_state.vi_current_skill = selected[0]
+            st.session_state.vi_phase = 'interview'
+            st.rerun()
+        elif not selected:
+            st.warning("Select at least one skill.")
+
+    # ===== VI PHASE 3: Interview =====
+    elif st.session_state.vi_phase == 'interview':
+        skill = st.session_state.vi_current_skill
+        skill_name = skill['name']
+        skill_type = skill.get('type', 'conceptual')
+        diff = st.session_state.vi_difficulty.get(skill_name, 3)
+        diff_stars = "⭐" * diff
+
+        total_skills = len(st.session_state.vi_selected_skills)
+        current_idx = st.session_state.vi_current_skill_idx
+
+        st.markdown(f"### 🎯 {skill_name}")
+        st.markdown(f"**Type:** {skill_type} | **Difficulty:** {diff_stars}")
+        st.progress((current_idx + 1) / total_skills, text=f"Skill {current_idx + 1}/{total_skills}")
+
+        if not st.session_state.vi_question:
+            with st.spinner("Generating question..."):
+                st.session_state.vi_question = generate_vi_question(skill_name, skill_type, diff)
+
+        q_data = st.session_state.vi_question
+        st.markdown(f'<div class="vi-question-box"><b>❓ Question:</b><br>{q_data.get("question", "Loading...")}</div>', unsafe_allow_html=True)
+
+        if q_data.get("input"):
+            st.markdown(f"**📥 Input:** `{q_data.get('input')}`")
+        if q_data.get("output"):
+            st.markdown(f"**📤 Output:** `{q_data.get('output')}`")
+
+        answer = st.text_area("Your Answer:", height=120, key=f"vi_answer_{skill_name}")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            submit = st.button("📤 Submit", type="primary", disabled=not answer)
+        with col2:
+            hint = st.button("💡 Get Hint")
+        with col3:
+            pass
+
+        if hint and q_data.get("hints"):
+            st.info(f"💡 **Hint:** {q_data['hints'][0] if q_data['hints'] else 'Think about the core concept.'}")
+
+        if submit and answer:
+            with st.spinner("Evaluating..."):
+                ev = evaluate_vi_answer(skill_name, q_data.get("question", ""), answer)
+                st.session_state.vi_evaluation = ev
+                st.session_state.vi_eval_done = True
+                st.session_state.vi_answers.append({'skill': skill_name, 'answer': answer, 'eval': ev})
+
+                st.session_state.vi_skill_scores[skill_name]['total'] += 1
+                if ev.get('correctness', 0) >= 0.6:
+                    st.session_state.vi_skill_scores[skill_name]['correct'] += 1
+
+                if ev.get('correctness', 0) >= 0.8:
+                    st.session_state.vi_difficulty[skill_name] = min(5, diff + 1)
+                elif ev.get('correctness', 0) < 0.4:
+                    st.session_state.vi_difficulty[skill_name] = max(1, diff - 1)
+
+                st.rerun()
+
+        if st.session_state.vi_eval_done:
+            ev = st.session_state.vi_evaluation
+            depth = ev.get('depth', 'medium')
+
+            st.markdown("---")
+            st.markdown("### 📊 Evaluation")
+            cols = st.columns(3)
+            cols[0].metric("✅ Correctness", f"{ev.get('correctness', 0):.0%}")
+            cols[1].metric("📝 Clarity", f"{ev.get('clarity', 0):.0%}")
+            cols[2].metric("🔍 Depth", f"{'🟢' if depth=='high' else '🟡' if depth=='medium' else '🔴'} {depth.upper()}")
+
+            feedback_text = ev.get('feedback', '')
+            try:
+                if '{' in feedback_text:
+                    fb_json = json.loads(feedback_text)
+                    feedback_text = fb_json.get('feedback', feedback_text)
+            except:
+                pass
+            st.markdown(f"**Feedback:** {feedback_text}")
+
+            if ev.get('strengths'):
+                st.success("✅ " + ", ".join(ev['strengths'][:2]))
+            if ev.get('gaps'):
+                st.error("❌ " + ", ".join(ev['gaps'][:2]))
+
+            st.markdown("---")
+            next_idx = st.session_state.vi_current_skill_idx + 1
+            if st.button("➡️ Next Skill", type="secondary"):
+                if next_idx >= len(st.session_state.vi_selected_skills):
+                    st.session_state.vi_phase = 'results'
+                else:
+                    st.session_state.vi_current_skill_idx = next_idx
+                    st.session_state.vi_current_skill = st.session_state.vi_selected_skills[next_idx]
+                st.session_state.vi_question = None
+                st.session_state.vi_eval_done = False
+                st.rerun()
+
+    # ===== VI PHASE 4: Results =====
+    elif st.session_state.vi_phase == 'results':
+        st.markdown("## 🎉 Interview Complete!")
+        total_correct = sum(s['correct'] for s in st.session_state.vi_skill_scores.values())
+        total_q = sum(s['total'] for s in st.session_state.vi_skill_scores.values())
+        overall = (total_correct / total_q * 100) if total_q > 0 else 0
+
+        st.markdown("### 📊 Final Score Breakdown")
+        cols = st.columns(4)
+        cols[0].metric("🎯 Overall", f"{overall:.0f}%")
+        cols[1].metric("📝 Questions", total_q)
+        cols[2].metric("✅ Correct", total_correct)
+        cols[3].metric("❌ Incorrect", total_q - total_correct)
+
+        st.markdown("### 🔍 Per-Skill Breakdown")
+        for skill in st.session_state.vi_selected_skills:
+            name = skill['name']
+            scores = st.session_state.vi_skill_scores.get(name, {'correct': 0, 'total': 1})
+            acc = scores['correct'] / scores['total'] if scores['total'] > 0 else 0
+            diff = st.session_state.vi_difficulty.get(name, 3)
+
+            if acc >= 0.8 and diff >= 4:
+                level, color = "✅ Expert", "success"
+            elif acc >= 0.6:
+                level, color = "⚠️ Proficient", "warning"
+            elif acc >= 0.4:
+                level, color = "🔴 Developing", "info"
+            else:
+                level, color = "❌ Needs Training", "error"
+
+            msg = f"**{name}**: {level} ({acc:.0%}, ⭐{diff})"
+            if color == "success":
+                st.success(msg)
+            elif color == "warning":
+                st.warning(msg)
+            else:
+                st.error(msg)
+
+        # Final recommendation
+        st.markdown("### 🏆 Final Assessment")
+        if overall >= 75:
+            st.success("## ✅ STRONG CANDIDATE")
+        elif overall >= 55:
+            st.warning("## ⚠️ CONDITIONALLY RECOMMENDED")
+        else:
+            st.error("## ❌ NEEDS MORE TRAINING")
+
+        # Download report
+        report = {
+            "overall_score": round(overall, 1),
+            "recommendation": "Highly Recommended" if overall >= 75 else "Conditionally Recommended" if overall >= 55 else "Not Recommended",
+            "skills": st.session_state.vi_skill_scores,
+            "difficulties": st.session_state.vi_difficulty,
+            "answers": st.session_state.vi_answers
+        }
+        st.download_button("📥 Download Interview Report", json.dumps(report, indent=2), "interview_report.json")
+
+        if st.button("🔄 New Interview"):
+            reset_vi()
+
+
 # ─── Main App ──────────────────────────────────────────────────────────────────
 
 def main():
@@ -809,6 +1194,7 @@ def main():
         "👥 Candidates",
         "📊 Scoring Results",
         "🔍 Explainability",
+        "🎤 Virtual Interview",
     ])
 
     with tabs[0]:
@@ -819,6 +1205,8 @@ def main():
         tab_scoring_results()
     with tabs[3]:
         tab_explainability()
+    with tabs[4]:
+        tab_virtual_interview()
 
 
 if __name__ == "__main__":

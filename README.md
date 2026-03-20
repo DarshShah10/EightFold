@@ -1,4 +1,23 @@
-# GitHub Signal Extraction Engine - Quick Start Guide
+# EightFold Talent Intelligence Platform
+
+## 🧠 Overview
+
+EightFold Talent Intelligence combines:
+- **Resume Parsing & Skill Extraction** — Analyze resumes and extract candidate skills
+- **GitHub Signal Extraction** — Deep behavioral analysis from GitHub profiles
+- **Adaptive Candidate Scoring** — Match candidates to job descriptions with context-aware weights
+- **Virtual Interview Engine** — Adaptive micro-assessment for interviewing candidates
+- **Explainability** — Evidence chains and reasoning traces for transparent decisions
+
+## 🎯 Features
+
+| Tab | Description |
+|-----|-------------|
+| 📋 JD Analysis | Context detection + skill extraction from job descriptions |
+| 👥 Candidates | Deep profile generation from GitHub handles |
+| 📊 Scoring Results | Adaptive scoring with gap analysis |
+| 🔍 Explainability | Evidence chains + reasoning traces |
+| 🎤 Virtual Interview | Adaptive micro-assessment engine |
 
 ## 🚀 Setup Instructions
 
@@ -87,15 +106,29 @@ python setup_env.py --full
 
 ```
 EightFold/
-├── modules/
-│   ├── __init__.py           # Package init
-│   ├── harvester.py          # Main data collector (THIS IS WHAT YOU RUN)
-│   ├── 02_commit_entropy.py  # Commit difficulty analysis
-│   └── 03_language_complexity.py  # Language & project complexity
-├── data/                     # Output directory for harvested data
-├── requirements.txt          # Python dependencies
-├── setup_env.py             # Environment setup helper
-├── run_harvester.py         # Quick test script
+├── modules/                  # Core modules for candidate analysis
+│   ├── harvester.py         # Data collector for GitHub profiles
+│   ├── candidate_profile.py # Candidate profile generation
+│   └── ...
+├── src/                     # Source modules for skill analysis
+│   ├── pdf_resume_parser.py # Resume parsing
+│   ├── scoring_engine.py    # Adaptive scoring
+│   └── ...
+├── virtual_interview/        # Virtual Interview Engine
+│   ├── app.py               # Streamlit UI for interviews
+│   ├── main.py              # CLI entry point
+│   ├── config.py             # Configuration
+│   ├── core/                # Core interview logic
+│   │   ├── question_generator.py
+│   │   ├── evaluator.py
+│   │   ├── feedback_generator.py
+│   │   └── ...
+│   ├── components/          # UI components
+│   ├── rubrics/             # Assessment rubrics
+│   └── services/            # TTS, voice input services
+├── unified_app.py           # Main unified Streamlit app (5 tabs)
+├── app.py                   # Entry point
+├── requirements.txt         # Python dependencies
 └── README.md                # This file
 ```
 

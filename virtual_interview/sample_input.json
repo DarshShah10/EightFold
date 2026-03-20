@@ -1,0 +1,28 @@
+{
+  "candidate_id": "cand_001",
+  "missing_skills": [
+    {
+      "skill": "Kubernetes",
+      "current_score": 0.35,
+      "target_score": 0.7,
+      "priority": "high"
+    },
+    {
+      "skill": "Docker",
+      "current_score": 0.45,
+      "target_score": 0.7,
+      "priority": "high"
+    },
+    {
+      "skill": "Python",
+      "current_score": 0.5,
+      "target_score": 0.7,
+      "priority": "medium"
+    }
+  ],
+  "role_requirements": {
+    "title": "Senior DevOps Engineer",
+    "required_skills": ["Kubernetes", "Docker", "Python", "AWS"],
+    "preferred_skills": ["Terraform", "CI/CD"]
+  }
+}
